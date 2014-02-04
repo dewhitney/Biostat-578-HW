@@ -1,0 +1,51 @@
+**This is the write-up for the first homework assignment due Tuesday Feb 4.**
+
+1. Use the GEOmetabd package to find all HCV gene expression data using the Illumina platform submitted by an investigator at Yale. This should be done with a single query, showing the title, the GSE accession number, the GPL accession number and the manufacturer and the description of the platform used.
+
+2. Reproduce your above query using the data.table package. Again, try to use a single line of code. [Hint: You first need to convert all db tables to data.table tables].
+
+```{r eval=FALSE}
+## eval = FALSE for this chunk under the assumption that the relevant packages are already installed
+source("http://bioconductor.org/biocLite.R")
+# Install all core packages and update all installed packages
+biocLite()
+biocLite(c("GEOmetadb", "GEOquery"))
+```
+
+```{r}
+## eval=TRUE to load the installed package
+library(GEOmetadb)
+```
+
+```{r eval=FALSE}
+## We leave the option to evaluate this as FALSE because it can take a long time to download
+getSQLiteFile()
+```
+
+```{r}
+## IMPORTANT: Working folder must be set where GEOmetadb.sqlite was downloaded
+geo_con <- dbConnect(SQLite(),'GEOmetadb.sqlite')
+```
+
+```{r}
+dbGetQuery(geo_con, "SELECT gse.title, gse.gse, gpl.gpl, gpl.manufacturer, gpl.technology FROM (gpl JOIN gse_gpl ON gpl.gpl=gse_gpl.gpl) j JOIN gse on j.gse=gse.gse WHERE gpl.manufacturer like '%Illumina%' AND gse.contact like '%Yale%' AND (gse.title like '%HCV%' OR gse.title like '%hepatitis C%')")
+```
+
+Some additional comments regarding Question 1: Note that `gse` and `gpl` do not necessarily share the same values for fields that may be identically named. That is, `gse.title` will **NOT** be the same as `gpl.title`. Thus, we should join using the `gse_gpl` file rather than trying to match on fields such as `id`. Also, when using titles to search for relevant studies, we must be careful to search for both full names and abbreviations.
+
+```{r}
+library(data.table)
+gse.table <- data.table(dbGetQuery(geo_con, "SELECT gse.title, gse.gse, gse.contact FROM gse"))
+gpl.table <- data.table(dbGetQuery(geo_con, "SELECT gpl.gpl, gpl.manufacturer, gpl.technology FROM gpl"))
+matching.table <- data.table(dbGetQuery(geo_con, "SELECT * FROM gse_gpl"))
+setkey(gse.table,gse); setkey(matching.table, gse)
+##  we set keys to merge using [] operators
+merged.table <- gse.table[matching.table] #note that this is a many-to-one merge
+setkey(gpl.table, gpl); setkey(merged.table, gpl)
+merged.table <- merge(merged.table, gpl.table, all=TRUE)
+merged.table[(title %like% 'HCV' | title %like% 'Hepatitis C') & manufacturer %like% 'Illumina' & contact %like% 'Yale']
+```
+
+The entries returned by this query are the same three as were output by `SQLite`.
+
+
