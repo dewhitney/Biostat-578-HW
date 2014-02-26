@@ -48,4 +48,6 @@ merged.table[(title %like% 'HCV' | title %like% 'Hepatitis C') & manufacturer %l
 
 The entries returned by this query are the same three as were output by `SQLite`.
 
+**This is a great HW. Too bad I'm not your partner for grading.-DEW**
+
 
